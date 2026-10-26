@@ -1,0 +1,5 @@
+{
+  "name": "session-board",
+  "version": "0.1.0",
+  "description": "Lets Claude sessions on the same repo share short status cards through one git branch per session, so they know what the other is doing."
+}
