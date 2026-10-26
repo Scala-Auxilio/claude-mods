@@ -1,0 +1,5 @@
+{
+  "name": "scala-auxilio-mods",
+  "owner": { "name": "Scala Auxilio" },
+  "plugins": [{ "name": "session-board", "source": "./" }]
+}
