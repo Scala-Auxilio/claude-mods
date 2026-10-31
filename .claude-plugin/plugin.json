@@ -1,6 +1,6 @@
 {
   "name": "session-board",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Lets Claude sessions share short status cards through one git branch per session, so they know what the others are doing. Works from a git clone or through a GitHub connector, with a side panel.",
   "types": "./types/index.d.ts"
 }

@@ -32,7 +32,12 @@ const metaAtom = atom(
   { shape: 'meta-1' },
 )
 
+// The only keys a lessons block may carry. A harvester reads the block, so keep this list fixed.
+const LESSON_KEYS = ['built', 'broke', 'workaround', 'remembered', 'limit'] as const
+type LessonKey = (typeof LESSON_KEYS)[number]
+
 type Request = { to: string; ask: string }
+type Lesson = { key: LessonKey; text: string }
 type PostInput = {
   working_on?: string
   done?: string[]
@@ -40,6 +45,9 @@ type PostInput = {
   requests?: Request[]
   owns?: string[]
   next?: string
+  lessons?: Lesson[]
+  slice?: string
+  observation?: string
 }
 
 type GitHubTarget = { owner: string; repo: string; server: string }
@@ -244,10 +252,28 @@ function renderCard(me: string, input: PostInput): string {
     input.requests && input.requests.length > 0
       ? input.requests.map(r => `- To ${r.to}: ${r.ask}`).join('\n')
       : '- none'
+  const posted = new Date().toISOString()
+  // The lessons block is line oriented, so every value is kept to one line.
+  const line = (s?: string) => (s ?? '').replace(/\s+/g, ' ').trim()
+  const lessons = (input.lessons ?? []).filter(l => LESSON_KEYS.includes(l?.key) && line(l.text))
+  const lessonSection =
+    lessons.length > 0
+      ? [
+          '## Lessons',
+          '```lessons',
+          `session: ${me}`,
+          `date: ${posted.slice(0, 10)}`,
+          ...(line(input.slice) ? [`slice: ${line(input.slice)}`] : []),
+          ...(line(input.observation) ? [`observation: ${line(input.observation)}`] : []),
+          ...lessons.map(l => `${l.key}: ${line(l.text)}`),
+          '```',
+          '',
+        ]
+      : []
   return [
     `${CARD_HEAD} ${me}`,
     '',
-    `Posted: ${new Date().toISOString()}`,
+    `Posted: ${posted}`,
     '',
     '## Working on',
     input.working_on?.trim() || 'not stated',
@@ -258,6 +284,7 @@ function renderCard(me: string, input: PostInput): string {
     '## Decisions',
     list(input.decisions),
     '',
+    ...lessonSection,
     '## Requests to other sessions (acted on only after Petrus says yes)',
     reqs,
     '',
@@ -354,6 +381,23 @@ export const register: Register = on => {
           },
           owns: { type: 'array', items: { type: 'string' }, description: 'Files, folders or areas this session owns' },
           next: { type: 'string', description: 'The next step' },
+          lessons: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                key: { type: 'string', enum: [...LESSON_KEYS] },
+                text: { type: 'string', description: 'One line' },
+              },
+              required: ['key', 'text'],
+            },
+            description:
+              'Lessons from the slice just finished, one line each. built: something produced. broke: a failure. ' +
+              'workaround: a detour taken because the normal path failed. remembered: a rule kept by memory that nothing enforces. ' +
+              'limit: a constraint of a tool or vendor.',
+          },
+          slice: { type: 'string', description: 'The slice or pull request the lessons belong to' },
+          observation: { type: 'string', description: 'Observation numbers that may apply, comma separated' },
         },
         required: ['working_on'],
       },
