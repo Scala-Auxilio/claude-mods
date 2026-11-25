@@ -1,0 +1,88 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# Shared CodeRabbit config for all Scala-Auxilio repos (V2 schema).
+# Every key below is documented at https://docs.coderabbit.ai/reference/configuration
+language: en
+tone_instructions: "Write for a non-technical CEO: plain English, short sentences, no jargon, no em dashes. Say the business risk first, then the technical detail."
+
+reviews:
+  profile: assertive
+  high_level_summary: true
+  high_level_summary_instructions: |
+    Write the summary for a non-technical CEO in plain English.
+    Start with one sentence on what this change does for the business.
+    Then say whether it could contact a real prospect or client, write to a live CRM,
+    change production, or lose data. Say "none found" if it cannot.
+    Explain any technical term in a few words. Do not use em dashes.
+
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - ".*"
+
+  # Data files are never reviewed: they can hold client or prospect data.
+  path_filters:
+    - "!**/*.csv"
+    - "!**/*.xlsx"
+    - "!**/runs/**"
+    - "!**/raw/**"
+    - "!**/scored/**"
+    - "!**/policy/recipients.json"
+
+  path_instructions:
+    - path: "**/*{retell,Retell,call,Call,phone,Phone,email,Email,mail,Mail,send,Send,outbox,apollo,Apollo,crm,CRM,zoho,Zoho,hubspot,HubSpot,contact,Contact,neverbounce,recipient}*"
+      instructions: "Flag any path where this could contact a real prospect or client, or write to a live CRM, without an explicit flag or dry-run."
+    - path: "**/*{retell,Retell,call,Call,phone,Phone,email,Email,mail,Mail,send,Send,outbox,apollo,Apollo,crm,CRM,zoho,Zoho,hubspot,HubSpot,contact,Contact,neverbounce,recipient}*/**"
+      instructions: "Flag any path where this could contact a real prospect or client, or write to a live CRM, without an explicit flag or dry-run."
+    - path: "**/{.env*,*.env,Dockerfile*,docker-compose*,railway.json,railpack.json}"
+      instructions: "Explain the production impact in one plain sentence."
+    - path: "**/config/**"
+      instructions: "Explain the production impact in one plain sentence."
+    - path: "**/{migrations,migration,migrate,sql,drizzle,alembic}/**"
+      instructions: "Explain the production impact in one plain sentence."
+    - path: "**/*migrat*"
+      instructions: "Explain the production impact in one plain sentence."
+    - path: "**/{test,tests,__tests__,spec}/**"
+      instructions: "Say whether the change is actually covered by a test."
+    - path: "**/*.{test,spec}.*"
+      instructions: "Say whether the change is actually covered by a test."
+    - path: "**/{test_*,*_test}.py"
+      instructions: "Say whether the change is actually covered by a test."
+
+  pre_merge_checks:
+    custom_checks:
+      - name: "No secrets, API keys or tokens committed"
+        mode: error
+        instructions: |
+          Fail if the change adds any value that looks like a real secret: an API key, access token,
+          password, private key, webhook signing secret, or a connection string with a password in it.
+          Pass if code only reads secrets from environment variables or a secret store and only the
+          names of those variables appear. Placeholder values in example files (for example
+          "your-key-here" in .env.example) pass.
+      - name: "Sending or calling has dry-run or kill switch"
+        mode: error
+        instructions: |
+          Applies only when the change adds or alters code that sends email, places or schedules phone
+          calls (for example Retell or a dialer), sends chat or SMS messages, reveals or enriches
+          contacts (for example Apollo), or writes to a CRM (for example Zoho or HubSpot).
+          Pass if that path is guarded by an explicit dry-run mode, a feature flag, or a kill switch
+          that is off by default or checked before every send or write, and the guard is visible in
+          the diff or already present in the touched code. Fail if real prospects or clients could be
+          contacted, contacts revealed or enriched, or a live CRM written to, without such a guard.
+          Pass without further checks only if the change touches none of the operations listed above
+          (sending email, calls, chat or SMS, contact reveal or enrichment, CRM writes).
+      - name: "Migrations reversible or explained"
+        mode: error
+        instructions: |
+          Applies only when the change adds or alters a database migration or schema change
+          (for example files under migrations, sql, drizzle or alembic).
+          Pass if each migration has a working down or rollback step, or the pull request description
+          or a comment in the migration explains in plain words why it cannot be reversed and how data
+          would be restored. Fail otherwise. Pass if there is no migration in the change.
+      - name: "Logic changes have tests"
+        mode: warning
+        instructions: |
+          Pass if every change to program logic (code that decides, calculates, sends, stores or
+          transforms something) comes with a new or updated test that exercises it.
+          Pass if the change only touches documentation, comments, formatting, configuration text or
+          data files. Fail if logic changed and no test was added or updated to cover it.
